@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TeamFlow Dashboard</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface-soft: #fbfbfa;
+      --text: #191919;
+      --muted: #6b6b6b;
+      --line: #e8e8e6;
+      --blue: #2f76ff;
+      --blue-soft: #edf3ff;
+      --green: #15803d;
+      --green-soft: #e8f7ed;
+      --yellow: #a16207;
+      --yellow-soft: #fef3c7;
+      --red: #b42318;
+      --red-soft: #feeceb;
+      --gray-soft: #f1f1ef;
+      --radius: 16px;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 20px rgba(0,0,0,.04);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: #fcfcfb;
+      padding: 20px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand { margin-bottom: 18px; }
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .brand p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+    .nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      color: #444;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .nav button:hover,
+    .nav button.active {
+      background: white;
+      border-color: var(--line);
+      font-weight: 700;
+    }
+
+    .sidebar-note {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 14px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .main { padding: 20px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .topbar h2 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -0.03em;
+    }
+    .topbar p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions,
+    .filters,
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: white;
+    }
+    .btn.danger {
+      color: var(--red);
+      border-color: #efc7c2;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .dashboard-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(24, minmax(0, 1fr));
+      grid-auto-rows: minmax(28px, auto);
+      gap: 10px;
+      align-items: start;
+      grid-auto-flow: dense;
+    }
+
+    .panel {
+      height: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+      resize: both;
+      min-width: 120px;
+      min-height: 120px;
+    }
+    }
+
+    .panel.dragging {
+      opacity: 0.55;
+      transform: scale(0.98);
+    }
+
+    .panel.drop-target {
+      outline: 2px dashed #bfd3ff;
+      outline-offset: 2px;
+    }
+
+    .dashboard-grid.drag-active {
+      background-image: radial-gradient(rgba(47,118,255,0.08) 1px, transparent 1px);
+      background-size: 12px 12px;
+      border-radius: 18px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 12px;
+      flex-wrap: wrap;
+      cursor: grab;
+      border-bottom: 1px solid transparent;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,1));
+    }
+
+    .panel-header:active {
+      cursor: grabbing;
+    }
+
+    .panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .drag-handle {
+      color: #a1a1aa;
+      font-size: 15px;
+      user-select: none;
+    }
+
+    .collapse-btn {
+      border: 1px solid var(--line);
+      background: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      color: #555;
+      flex: 0 0 auto;
+    }
+
+    .collapse-btn:hover {
+      background: var(--surface-soft);
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .panel-body {
+      overflow: auto;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      width: 14px;
+      height: 14px;
+      cursor: se-resize;
+      background: linear-gradient(135deg, transparent 50%, #bbb 50%);
+      border-radius: 3px;
+    }
+
+    .panel-body {
+      padding: 0 16px 16px;
+    }
+
+    .panel.collapsed .panel-body {
+      display: none;
+    }
+
+    .panel.collapsed .panel-header {
+      border-bottom-color: transparent;
+    }
+
+    .span-2 { grid-column: span 16; }
+    .span-3 { grid-column: span 24; }
+    .span-4 { grid-column: span 8; }
+    .span-2-small { grid-column: span 6; }
+    .span-2-mini { grid-column: span 4; }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 0;
+    }
+
+    .kpi-card {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .kpi-card .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .kpi-card .value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .kpi-card .sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .form-grid,
+    .form-row-2 {
+      display: grid;
+      gap: 10px;
+    }
+
+    .form-row-2 { grid-template-columns: 1fr 1fr; }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #bfd3ff;
+      box-shadow: 0 0 0 4px rgba(47,118,255,.08);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .column {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 0;
+    }
+
+    .column h4 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+
+    .task-list,
+    .alert-list,
+    .calendar-list,
+    .archive-list,
+    .assignee-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-card,
+    .mini-card,
+    .archive-card,
+    .assignee-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .task-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .todo { background: var(--gray-soft); color: #555; }
+    .progress { background: var(--blue-soft); color: var(--blue); }
+    .delay { background: var(--red-soft); color: var(--red); }
+    .done { background: var(--green-soft); color: var(--green); }
+    .high { background: var(--red-soft); color: var(--red); }
+    .medium { background: var(--yellow-soft); color: var(--yellow); }
+    .low { background: var(--green-soft); color: var(--green); }
+
+    .progress-wrap { margin-top: 10px; }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #efefed;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      background: var(--blue);
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .task-actions button {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 10px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+
+    .calendar-day {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      min-height: 100px;
+      padding: 8px;
+    }
+
+    .day-num {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .calendar-task {
+      border-radius: 9px;
+      padding: 6px;
+      font-size: 11px;
+      line-height: 1.35;
+      margin-bottom: 5px;
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .calendar-task.delay {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .calendar-task.todo {
+      background: #eff1f4;
+      color: #4b5563;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--surface-soft);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-grid {
+        grid-template-columns: repeat(16, minmax(0, 1fr));
+      }
+      .span-2 { grid-column: span 10; }
+      .span-3 { grid-column: span 16; }
+      .span-4 { grid-column: span 8; }
+      .span-2-small { grid-column: span 5; }
+      .span-2-mini { grid-column: span 4; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+      .span-2 { grid-column: span 8; }
+      .span-3 { grid-column: span 8; }
+      .span-4 { grid-column: span 4; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+      .span-3 { grid-column: span 2; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+      .dashboard-grid,
+      .board,
+      .calendar-grid,
+      .form-row-2,
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .span-2,
+      .span-3,
+      .span-4,
+      .span-2-small,
+      .span-2-mini {
+        grid-column: span 1;
+      }
+    }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+      .dashboard-grid,
+      .board,
+      .calendar-grid,
+      .form-row-2,
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .span-2,
+      .span-3,
+      .span-4 {
+        grid-column: span 1;
+      }
+    }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+      .dashboard-grid,
+      .board,
+      .calendar-grid,
+      .form-row-2,
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .span-2,
+      .span-3 {
+        grid-column: span 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>TeamFlow</h1>
+        <p>클래스팀 업무 대시보드</p>
+      </div>
+
+      <nav class="nav">
+        <button class="active" data-section="overview">한 화면 대시보드</button>
+        <button data-section="calendar">달력 보기</button>
+        <button data-section="archive">완료 업무 보관함</button>
+      </nav>
+
+      <div class="sidebar-note">
+        클래스팀의 업무 진행 사항을 기록하여 공유하는 공간입니다.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>팀 업무 대시보드</h2>
+          <p>주간 업무의 진행 사항을 공유하는 대시보드</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="sortDeadlineBtn">마감순 정렬</button>
+          <button class="btn" id="exportBtn">백업 JSON</button>
+          <button class="btn danger" id="resetBtn">전체 초기화</button>
+        </div>
+      </div>
+
+      <section class="section active" id="overview">
+        <div class="dashboard-grid" id="dashboardGrid">
+          <div class="panel span-2" data-panel-id="kpi">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>전체 현황</h3>
+                  <div class="small">현재 진행 상황 요약</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="kpi" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="kpi-grid" id="kpiGrid"></div>
+            </div>
+          </div>
+
+          <div class="panel span-4" data-panel-id="form">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>빠른 업무 추가</h3>
+                  <div class="small">바로 입력</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="form" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <form id="taskForm" class="form-grid">
+                <input type="text" id="taskTitle" placeholder="업무명" required />
+                <div class="form-row-2">
+                  <input type="text" id="taskAssignee" placeholder="담당자명" required />
+                  <input type="text" id="taskTag" placeholder="태그" />
+                </div>
+                <div class="form-row-2">
+                  <select id="taskStatus">
+                    <option value="할 일">할 일</option>
+                    <option value="진행 중">진행 중</option>
+                    <option value="지연">지연</option>
+                    <option value="완료">완료</option>
+                  </select>
+                  <select id="taskPriority">
+                    <option value="높음">우선순위 높음</option>
+                    <option value="중간" selected>우선순위 중간</option>
+                    <option value="낮음">우선순위 낮음</option>
+                  </select>
+                </div>
+                <div class="form-row-2">
+                  <input type="date" id="taskDue" />
+                  <input type="number" id="taskProgress" min="0" max="100" value="0" placeholder="진행률" />
+                </div>
+                <textarea id="taskMemo" placeholder="메모"></textarea>
+                <div class="quick-actions">
+                  <button type="submit" class="btn primary">업무 저장</button>
+                  <button type="button" class="btn" id="clearFormBtn">초기화</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel span-2" data-panel-id="board">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>업무 상태 보드</h3>
+                  <div class="small">상태별 한눈에 보기</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="board" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="filters" style="margin-bottom:12px;">
+                <input type="text" id="searchInput" placeholder="검색" style="max-width:140px;" />
+                <select id="statusFilter">
+                  <option value="all">전체 상태</option>
+                  <option value="할 일">할 일</option>
+                  <option value="진행 중">진행 중</option>
+                  <option value="지연">지연</option>
+                </select>
+                <select id="priorityFilter">
+                  <option value="all">전체 우선순위</option>
+                  <option value="높음">높음</option>
+                  <option value="중간">중간</option>
+                  <option value="낮음">낮음</option>
+                </select>
+                <input type="text" id="assigneeFilter" placeholder="담당자" style="max-width:120px;" />
+              </div>
+              <div class="board" id="kanbanBoard"></div>
+            </div>
+          </div>
+
+          <div class="panel span-2-small" data-panel-id="alerts">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>주의 업무</h3>
+                  <div class="small">지연/높은 우선순위</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="alerts" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="alert-list" id="riskAlerts"></div>
+            </div>
+          </div>
+
+          <div class="panel span-2-small" data-panel-id="schedule">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>다가오는 마감</h3>
+                  <div class="small">가까운 일정</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="schedule" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="calendar-list" id="upcomingSchedules"></div>
+            </div>
+          </div>
+
+          <div class="panel span-2-small" data-panel-id="assignee">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>담당자별 현황</h3>
+                  <div class="small">활성 업무 기준</div>
+                </div>
+              </div>
+              <button class="collapse-btn" data-collapse-target="assignee" aria-label="접기 또는 펼치기">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="assignee-list" id="assigneeSummary"></div>
+            </div>
+          </div>
+
+          <div class="panel span-3" data-panel-id="archive">
+            <div class="resize-handle"></div>
+            <div class="panel-header" draggable="true">
+              <div class="panel-header-left">
+                <span class="drag-handle">⋮⋮</span>
+                <div>
+                  <h3>최근 완료 업무</h3>
+                  <div class="small">완료 처리된 최근 내역</div>
+                </div>
+              </div>
+              <div class="quick-actions">
+                <button class="btn" id="restoreAllBtn">전체 복원</button>
+                <button class="collapse-btn" data-collapse-target="archive" aria-label="접기 또는 펼치기">−</button>
+                <button class="btn danger" id="clearArchiveBtn">보관함 비우기</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="archive-list" id="archiveList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="calendar">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>달력형 일정 보기</h3>
+            <div class="small">마감일 있는 업무만 표시</div>
+          </div>
+          <div id="calendarGrid"></div>
+        </div>
+      </section>
+
+      <section class="section" id="archive">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>완료 업무 보관함</h3>
+            <div class="small">완료 처리된 업무 전체 목록</div>
+          </div>
+          <div class="archive-list" id="archiveListFull"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'teamflow_tasks_preview_fix_v1';
+    const ARCHIVE_KEY = 'teamflow_archive_preview_fix_v1';
+    const EDIT_KEY = 'teamflow_editing_preview_fix_v1';
+    const PANEL_ORDER_KEY = 'teamflow_panel_order_v1';
+    const COLLAPSED_KEY = 'teamflow_panel_collapsed_v1';
+
+    const statusClassMap = { '할 일': 'todo', '진행 중': 'progress', '지연': 'delay', '완료': 'done' };
+    const priorityClassMap = { '높음': 'high', '중간': 'medium', '낮음': 'low' };
+
+    function load(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    let tasks = load(STORAGE_KEY, []);
+    let archive = load(ARCHIVE_KEY, []);
+    let editingId = load(EDIT_KEY, null);
+    let panelOrder = load(PANEL_ORDER_KEY, ['kpi','form','board','alerts','schedule','assignee','archive']);
+    let collapsedPanels = load(COLLAPSED_KEY, []);
+
+    function saveAll() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive));
+      localStorage.setItem(EDIT_KEY, JSON.stringify(editingId));
+      localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(panelOrder));
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsedPanels));
+    }
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    document.querySelectorAll('.nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.section).classList.add('active');
+      });
+    });
+
+    function applyPanelOrder() {
+      const grid = document.getElementById('dashboardGrid');
+      if (!grid) return;
+      const panels = Array.from(grid.querySelectorAll('[data-panel-id]'));
+      panels.forEach(panel => {
+        const id = panel.dataset.panelId;
+        const idx = panelOrder.indexOf(id);
+        panel.style.order = idx === -1 ? 999 : idx;
+      });
+    }
+
+    function applyCollapsedState() {
+      document.querySelectorAll('[data-panel-id]').forEach(panel => {
+        const id = panel.dataset.panelId;
+        const btn = panel.querySelector('.collapse-btn[data-collapse-target]');
+        const isCollapsed = collapsedPanels.includes(id);
+        panel.classList.toggle('collapsed', isCollapsed);
+        if (btn) btn.textContent = isCollapsed ? '+' : '−';
+      });
+    }
+
+    function setupCollapsing() {
+      document.querySelectorAll('.collapse-btn[data-collapse-target]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.collapseTarget;
+          if (collapsedPanels.includes(id)) {
+            collapsedPanels = collapsedPanels.filter(v => v !== id);
+          } else {
+            collapsedPanels.push(id);
+          }
+          saveAll();
+          applyCollapsedState();
+        });
+      });
+    }
+
+    function setupDragAndDrop() {
+      const grid = document.getElementById('dashboardGrid');
+      const panels = document.querySelectorAll('#dashboardGrid [data-panel-id]');
+      let draggingPanel = null;
+
+      function movePanelBeforeTarget(targetPanel) {
+        if (!draggingPanel || !targetPanel || draggingPanel === targetPanel) return;
+        const draggingId = draggingPanel.dataset.panelId;
+        const targetId = targetPanel.dataset.panelId;
+        const nextOrder = panelOrder.filter(id => id !== draggingId);
+        const targetIndex = nextOrder.indexOf(targetId);
+        if (targetIndex < 0) return;
+        nextOrder.splice(targetIndex, 0, draggingId);
+        panelOrder = nextOrder;
+        saveAll();
+        applyPanelOrder();
+      }
+
+      panels.forEach(panel => {
+        const header = panel.querySelector('.panel-header');
+        if (!header) return;
+
+        header.addEventListener('dragstart', (e) => {
+          draggingPanel = panel;
+          panel.classList.add('dragging');
+          grid.classList.add('drag-active');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', panel.dataset.panelId);
+          }
+        });
+
+        header.addEventListener('dragend', () => {
+          panel.classList.remove('dragging');
+          grid.classList.remove('drag-active');
+          document.querySelectorAll('#dashboardGrid [data-panel-id]').forEach(p => p.classList.remove('drop-target'));
+          draggingPanel = null;
+        });
+
+        panel.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (!draggingPanel || draggingPanel === panel) return;
+          document.querySelectorAll('#dashboardGrid [data-panel-id]').forEach(p => p.classList.remove('drop-target'));
+          panel.classList.add('drop-target');
+        });
+
+        panel.addEventListener('dragleave', () => {
+          panel.classList.remove('drop-target');
+        });
+
+        panel.addEventListener('drop', (e) => {
+          e.preventDefault();
+          panel.classList.remove('drop-target');
+          movePanelBeforeTarget(panel);
+        });
+      });
+
+      grid.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!draggingPanel) return;
+
+        const candidates = Array.from(grid.querySelectorAll('[data-panel-id]:not(.dragging)'));
+        if (!candidates.length) return;
+
+        const x = e.clientX;
+        const y = e.clientY;
+        let nearest = null;
+        let nearestDistance = Infinity;
+
+        candidates.forEach(panel => {
+          const rect = panel.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = cx - x;
+          const dy = cy - y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = panel;
+          }
+        });
+
+        document.querySelectorAll('#dashboardGrid [data-panel-id]').forEach(p => p.classList.remove('drop-target'));
+        if (nearest) nearest.classList.add('drop-target');
+      });
+
+      grid.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!draggingPanel) return;
+
+        const candidates = Array.from(grid.querySelectorAll('[data-panel-id]:not(.dragging)'));
+        if (!candidates.length) return;
+
+        const x = e.clientX;
+        const y = e.clientY;
+        let nearest = null;
+        let nearestDistance = Infinity;
+
+        candidates.forEach(panel => {
+          const rect = panel.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = cx - x;
+          const dy = cy - y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = panel;
+          }
+        });
+
+        document.querySelectorAll('#dashboardGrid [data-panel-id]').forEach(p => p.classList.remove('drop-target'));
+        if (nearest) movePanelBeforeTarget(nearest);
+      });
+    }
+
+    function clearForm() {
+      document.getElementById('taskForm').reset();
+      document.getElementById('taskProgress').value = 0;
+      document.getElementById('taskPriority').value = '중간';
+      document.getElementById('taskStatus').value = '할 일';
+      editingId = null;
+      saveAll();
+      document.querySelector('#taskForm button[type="submit"]').textContent = '업무 저장';
+    }
+
+    function fillForm(task) {
+      document.getElementById('taskTitle').value = task.title || '';
+      document.getElementById('taskAssignee').value = task.assignee || '';
+      document.getElementById('taskTag').value = task.tag || '';
+      document.getElementById('taskStatus').value = task.status || '할 일';
+      document.getElementById('taskPriority').value = task.priority || '중간';
+      document.getElementById('taskDue').value = task.due || '';
+      document.getElementById('taskProgress').value = task.progress || 0;
+      document.getElementById('taskMemo').value = task.memo || '';
+      editingId = task.id;
+      saveAll();
+      document.querySelector('#taskForm button[type="submit"]').textContent = '업무 수정 저장';
+      document.querySelector('[data-section="overview"]').click();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function archiveTask(taskId) {
+      const target = tasks.find(t => t.id === taskId);
+      if (!target) return;
+      archive.unshift({ ...target, status: '완료', progress: 100, completedAt: new Date().toISOString() });
+      tasks = tasks.filter(t => t.id !== taskId);
+      if (editingId === taskId) editingId = null;
+      saveAll();
+      function setupResizeSnap() {
+      const panels = document.querySelectorAll('.panel');
+      panels.forEach(panel => {
+        panel.addEventListener('mouseup', () => {
+          const grid = document.getElementById('dashboardGrid');
+          const totalCols = window.innerWidth <= 900 ? 1 : window.innerWidth <= 1200 ? 16 : 24;
+          const colWidth = grid.clientWidth / totalCols;
+          const rect = panel.getBoundingClientRect();
+
+          const newCols = Math.round(rect.width / colWidth);
+          panel.style.gridColumn = `span ${Math.max(3, Math.min(totalCols, newCols))}`;
+        });
+      });
+    }
+
+    setupResizeSnap();
+    renderAll();
+    }
+
+    function restoreTask(taskId) {
+      const target = archive.find(t => t.id === taskId);
+      if (!target) return;
+      const restored = { ...target, status: '할 일', progress: 0 };
+      delete restored.completedAt;
+      tasks.unshift(restored);
+      archive = archive.filter(t => t.id !== taskId);
+      saveAll();
+      renderAll();
+    }
+
+    function deleteTask(taskId) {
+      tasks = tasks.filter(t => t.id !== taskId);
+      if (editingId === taskId) editingId = null;
+      saveAll();
+      renderAll();
+    }
+
+    function deleteArchiveTask(taskId) {
+      archive = archive.filter(t => t.id !== taskId);
+      saveAll();
+      renderAll();
+    }
+
+    function updateTaskStatus(taskId, nextStatus) {
+      if (nextStatus === '완료') {
+        archiveTask(taskId);
+        return;
+      }
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      task.status = nextStatus;
+      if (nextStatus === '할 일' && task.progress === 100) task.progress = 0;
+      if (nextStatus === '진행 중' && task.progress === 0) task.progress = 25;
+      saveAll();
+      renderAll();
+    }
+
+    function renderKPIs() {
+      const total = tasks.length;
+      const doing = tasks.filter(t => t.status === '진행 중').length;
+      const delayed = tasks.filter(t => t.status === '지연').length;
+      const done = archive.length;
+      const rate = total + done === 0 ? 0 : Math.round((done / (total + done)) * 100);
+      const data = [
+        { label: '현재 업무', value: total, sub: '활성 업무 수' },
+        { label: '진행 중', value: doing, sub: '현재 처리 중' },
+        { label: '지연', value: delayed, sub: '확인 필요' },
+        { label: '완료율', value: rate + '%', sub: '완료 포함 비율' }
+      ];
+      document.getElementById('kpiGrid').innerHTML = data.map(k => `
+        <div class="kpi-card">
+          <div class="label">${k.label}</div>
+          <div class="value">${k.value}</div>
+          <div class="sub">${k.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    function taskCardHtml(t, compact=false) {
+      return `
+        <div class="${compact ? 'mini-card' : 'task-card'}">
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="meta">
+            <span>${escapeHtml(t.assignee || '담당자 없음')}</span>
+            ${t.tag ? `<span>•</span><span>${escapeHtml(t.tag)}</span>` : ''}
+            ${t.due ? `<span>•</span><span>${escapeHtml(t.due)}</span>` : ''}
+          </div>
+          ${t.memo ? `<div class="small" style="margin-top:8px;">${escapeHtml(t.memo)}</div>` : ''}
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
+            <span class="badge ${statusClassMap[t.status]}">${t.status}</span>
+            <span class="badge ${priorityClassMap[t.priority]}">${t.priority}</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="small">진행률 ${Number(t.progress || 0)}%</div>
+            <div class="progress-bar"><span style="width:${Number(t.progress || 0)}%"></span></div>
+          </div>
+          ${compact ? '' : `
+            <div class="task-actions">
+              <button onclick="fillFormById('${t.id}')">수정</button>
+              <button onclick="quickStatus('${t.id}','할 일')">할 일</button>
+              <button onclick="quickStatus('${t.id}','진행 중')">진행 중</button>
+              <button onclick="quickStatus('${t.id}','지연')">지연</button>
+              <button onclick="quickStatus('${t.id}','완료')">완료</button>
+              <button onclick="removeTask('${t.id}')">삭제</button>
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function filteredTasks() {
+      const search = document.getElementById('searchInput').value.trim().toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+      const priority = document.getElementById('priorityFilter').value;
+      const assignee = document.getElementById('assigneeFilter').value.trim().toLowerCase();
+
+      return tasks.filter(t => {
+        const combined = `${t.title} ${t.tag || ''} ${t.assignee || ''} ${t.memo || ''}`.toLowerCase();
+        const matchSearch = combined.includes(search);
+        const matchStatus = status === 'all' || t.status === status;
+        const matchPriority = priority === 'all' || t.priority === priority;
+        const matchAssignee = !assignee || (t.assignee || '').toLowerCase().includes(assignee);
+        return matchSearch && matchStatus && matchPriority && matchAssignee;
+      });
+    }
+
+    function renderKanban() {
+      const cols = ['할 일', '진행 중', '지연'];
+      const filtered = filteredTasks();
+      document.getElementById('kanbanBoard').innerHTML = cols.map(col => {
+        const items = filtered.filter(t => t.status === col);
+        return `
+          <div class="column">
+            <h4>${col}</h4>
+            ${items.length ? items.map(t => taskCardHtml(t)).join('') : '<div class="empty">표시할 업무가 없습니다.</div>'}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAlerts() {
+      const items = tasks.filter(t => t.status === '지연' || t.priority === '높음').slice(0, 5);
+      document.getElementById('riskAlerts').innerHTML = items.length ? items.map(t => `
+        <div class="mini-card">
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="meta"><span>${escapeHtml(t.assignee || '담당자 없음')}</span>${t.due ? `<span>•</span><span>${escapeHtml(t.due)}</span>` : ''}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
+            <span class="badge ${statusClassMap[t.status]}">${t.status}</span>
+            <span class="badge ${priorityClassMap[t.priority]}">${t.priority}</span>
+          </div>
+        </div>
+      `).join('') : '<div class="empty">주의가 필요한 업무가 없습니다.</div>';
+    }
+
+    function renderSchedules() {
+      const items = [...tasks].filter(t => t.due).sort((a,b) => new Date(a.due) - new Date(b.due)).slice(0, 6);
+      document.getElementById('upcomingSchedules').innerHTML = items.length ? items.map(t => `
+        <div class="mini-card">
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="meta"><span>${escapeHtml(t.assignee || '담당자 없음')}</span><span>•</span><span>${escapeHtml(t.due)}</span></div>
+        </div>
+      `).join('') : '<div class="empty">등록된 마감 일정이 없습니다.</div>';
+    }
+
+    function renderAssignees() {
+      const grouped = {};
+      tasks.forEach(t => {
+        const key = (t.assignee || '미지정').trim() || '미지정';
+        if (!grouped[key]) grouped[key] = { total: 0, doing: 0, delayed: 0 };
+        grouped[key].total += 1;
+        if (t.status === '진행 중') grouped[key].doing += 1;
+        if (t.status === '지연') grouped[key].delayed += 1;
+      });
+      const rows = Object.entries(grouped).sort((a,b) => b[1].total - a[1].total);
+      document.getElementById('assigneeSummary').innerHTML = rows.length ? rows.map(([name, info]) => `
+        <div class="assignee-card">
+          <div class="task-title">${escapeHtml(name)}</div>
+          <div class="meta"><span>전체 ${info.total}</span><span>•</span><span>진행 ${info.doing}</span><span>•</span><span>지연 ${info.delayed}</span></div>
+        </div>
+      `).join('') : '<div class="empty">등록된 업무가 없습니다.</div>';
+    }
+
+    function renderArchive() {
+      const recent = archive.slice(0, 6);
+      const html = recent.length ? recent.map(t => `
+        <div class="archive-card">
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="meta"><span>${escapeHtml(t.assignee || '담당자 없음')}</span>${t.completedAt ? `<span>•</span><span>${new Date(t.completedAt).toLocaleString('ko-KR')}</span>` : ''}</div>
+          <div class="task-actions">
+            <button onclick="restoreById('${t.id}')">복원</button>
+            <button onclick="deleteArchiveById('${t.id}')">삭제</button>
+          </div>
+        </div>
+      `).join('') : '<div class="empty">완료된 업무가 없습니다.</div>';
+      document.getElementById('archiveList').innerHTML = html;
+
+      const full = archive.length ? archive.map(t => `
+        <div class="archive-card">
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="meta"><span>${escapeHtml(t.assignee || '담당자 없음')}</span>${t.completedAt ? `<span>•</span><span>${new Date(t.completedAt).toLocaleString('ko-KR')}</span>` : ''}</div>
+          <div class="task-actions">
+            <button onclick="restoreById('${t.id}')">복원</button>
+            <button onclick="deleteArchiveById('${t.id}')">삭제</button>
+          </div>
+        </div>
+      `).join('') : '<div class="empty">보관된 완료 업무가 없습니다.</div>';
+      document.getElementById('archiveListFull').innerHTML = full;
+    }
+
+    function renderCalendar() {
+      const el = document.getElementById('calendarGrid');
+      const withDates = tasks.filter(t => t.due);
+      if (!withDates.length) {
+        el.innerHTML = '<div class="empty">마감일이 있는 업무를 추가하면 달력에 표시됩니다.</div>';
+        return;
+      }
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const start = first.getDay();
+      const total = last.getDate();
+      const labels = ['일','월','화','수','목','금','토'];
+      const monthTasks = withDates.filter(t => {
+        const d = new Date(t.due);
+        return d.getFullYear() === year && d.getMonth() === month;
+      });
+
+      let html = '<div class="calendar-grid">';
+      labels.forEach(label => {
+        html += `<div class="calendar-day" style="min-height:auto;background:#111827;color:white;"><div class="day-num">${label}</div></div>`;
+      });
+      for (let i=0;i<start;i++) html += '<div class="calendar-day" style="background:#fafaf9;"></div>';
+      for (let day=1; day<=total; day++) {
+        const dayTasks = monthTasks.filter(t => new Date(t.due).getDate() === day);
+        html += `<div class="calendar-day"><div class="day-num">${day}</div>`;
+        html += dayTasks.length ? dayTasks.map(t => `<div class="calendar-task ${statusClassMap[t.status]}">${escapeHtml(t.title)}</div>`).join('') : '<div class="small">일정 없음</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    function renderAll() {
+      renderKPIs();
+      renderKanban();
+      renderAlerts();
+      renderSchedules();
+      renderAssignees();
+      renderArchive();
+      renderCalendar();
+      applyPanelOrder();
+      applyCollapsedState();
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = {
+        title: document.getElementById('taskTitle').value.trim(),
+        assignee: document.getElementById('taskAssignee').value.trim(),
+        tag: document.getElementById('taskTag').value.trim(),
+        status: document.getElementById('taskStatus').value,
+        priority: document.getElementById('taskPriority').value,
+        due: document.getElementById('taskDue').value,
+        progress: Math.max(0, Math.min(100, Number(document.getElementById('taskProgress').value || 0))),
+        memo: document.getElementById('taskMemo').value.trim()
+      };
+      if (!form.title || !form.assignee) {
+        alert('업무명과 담당자명은 필수입니다.');
+        return;
+      }
+      if (editingId) {
+        tasks = tasks.map(t => t.id === editingId ? { ...t, ...form } : t);
+      } else {
+        const item = { id: uid(), createdAt: new Date().toISOString(), ...form };
+        if (item.status === '완료') archive.unshift({ ...item, progress: 100, completedAt: new Date().toISOString() });
+        else tasks.unshift(item);
+      }
+      saveAll();
+      clearForm();
+      renderAll();
+    });
+
+    document.getElementById('clearFormBtn').addEventListener('click', clearForm);
+    ['searchInput', 'statusFilter', 'priorityFilter', 'assigneeFilter'].forEach(id => {
+      document.getElementById(id).addEventListener('input', renderKanban);
+      document.getElementById(id).addEventListener('change', renderKanban);
+    });
+
+    document.getElementById('sortDeadlineBtn').addEventListener('click', () => {
+      tasks.sort((a,b) => {
+        if (!a.due && !b.due) return 0;
+        if (!a.due) return 1;
+        if (!b.due) return -1;
+        return new Date(a.due) - new Date(b.due);
+      });
+      saveAll();
+      renderAll();
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify({ tasks, archive }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'teamflow-backup.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (!confirm('전체 데이터를 초기화할까요?')) return;
+      tasks = [];
+      archive = [];
+      editingId = null;
+      saveAll();
+      clearForm();
+      renderAll();
+    });
+
+    document.getElementById('restoreAllBtn').addEventListener('click', () => {
+      if (!archive.length) return;
+      const restored = archive.map(t => {
+        const item = { ...t, status: '할 일', progress: 0 };
+        delete item.completedAt;
+        return item;
+      });
+      tasks = [...restored, ...tasks];
+      archive = [];
+      saveAll();
+      renderAll();
+    });
+
+    document.getElementById('clearArchiveBtn').addEventListener('click', () => {
+      if (!confirm('보관함을 비울까요?')) return;
+      archive = [];
+      saveAll();
+      renderAll();
+    });
+
+    window.fillFormById = function(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) fillForm(task);
+    };
+
+    window.quickStatus = function(id, status) {
+      updateTaskStatus(id, status);
+    };
+
+    window.removeTask = function(id) {
+      if (!confirm('이 업무를 삭제할까요?')) return;
+      deleteTask(id);
+    };
+
+    window.restoreById = function(id) {
+      restoreTask(id);
+    };
+
+    window.deleteArchiveById = function(id) {
+      if (!confirm('보관함에서 삭제할까요?')) return;
+      deleteArchiveTask(id);
+    };
+
+    applyPanelOrder();
+    setupCollapsing();
+    setupDragAndDrop();
+    applyCollapsedState();
+    renderAll();
+  </script>
+</body>
+</html>
